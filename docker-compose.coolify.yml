@@ -1,0 +1,40 @@
+# Coolify Docker Compose resource for the CaptchaTunnel server.
+#
+# Deploy in Coolify:
+#   1. Resources -> + New -> Docker Compose -> Git Repository
+#   2. Select this repo (mdrijonhossainjibon/captchatunnel)
+#      and point the compose file to: docker-compose.coolify.yml
+#   3. Set the environment variables (especially CAPTCHATUNNEL_TOKEN).
+#   4. Deploy.
+#
+# The container publishes:
+#   - 4443      : control channel (clients connect here)
+#   - 2086      : HTTP ingress, used as the Cloudflare origin for
+#                 *.redy.captchamaster.org (Cloudflare terminates TLS)
+#   - 10000-10100 : public TCP tunnels (direct, not via Cloudflare)
+#
+# The entrypoint generates a self-signed control-channel cert on first run,
+# so no host file mounts are required.
+
+services:
+  server:
+    image: captchamaster/captchatunnel-server:1.0.0
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    restart: unless-stopped
+    environment:
+      CAPTCHATUNNEL_TOKEN: ${CAPTCHATUNNEL_TOKEN:-change-this-secret-token}
+      CAPTCHATUNNEL_BASE_DOMAIN: ${CAPTCHATUNNEL_BASE_DOMAIN:-redy.captchamaster.org}
+      CAPTCHATUNNEL_PUBLIC_ADDR: ${CAPTCHATUNNEL_PUBLIC_ADDR:-redy.captchamaster.org}
+      CAPTCHATUNNEL_CONTROL_ADDR: 0.0.0.0:4443
+      CAPTCHATUNNEL_HTTP_ADDR: 0.0.0.0:8080
+      CAPTCHATUNNEL_TCP_ADDR: 0.0.0.0
+      CAPTCHATUNNEL_TCP_PORT_MIN: 10000
+      CAPTCHATUNNEL_TCP_PORT_MAX: 10100
+      CAPTCHATUNNEL_TLS_CERT: /etc/captchatunnel/tls/server.crt
+      CAPTCHATUNNEL_TLS_KEY: /etc/captchatunnel/tls/server.key
+    ports:
+      - "4443:4443"
+      - "2086:8080"
+      - "10000-10100:10000-10100"

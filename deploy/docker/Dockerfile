@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1
 #
 # Build:  docker build -f deploy/docker/Dockerfile -t captchatunnel-server .
-# The image contains only the statically-linked server binary.
+# The image is self-contained: the entrypoint generates a self-signed TLS
+# certificate on first run, so it deploys cleanly as a Coolify resource or a
+# bare `docker run`.
 
 FROM golang:1.22-alpine AS build
 WORKDIR /src
@@ -21,15 +23,16 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     -o /out/captchatunnel-server ./cmd/server
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apk add --no-cache ca-certificates tzdata openssl \
     && addgroup -S app \
     && adduser -S -G app app
 WORKDIR /app
 COPY --from=build /out/captchatunnel-server /usr/local/bin/captchatunnel-server
-USER app
+COPY deploy/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# 4443 = control channel (TLS), 8080 = HTTP ingress (nginx upstream),
-# 10000-10100 = per-tunnel TCP ports.
-EXPOSE 4443 8080 10000-10100
+# 4443 = control channel (TLS), 8080 = HTTP ingress (bound publicly on 2086
+# behind Cloudflare), 10000-10100 = per-tunnel TCP ports.
+EXPOSE 4443 8080 2086 10000-10100
 
-ENTRYPOINT ["captchatunnel-server"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

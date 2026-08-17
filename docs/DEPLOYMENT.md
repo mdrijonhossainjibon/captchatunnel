@@ -177,3 +177,26 @@ docker compose up -d --build
 - **Scale:** for thousands of tunnels, raise `LimitNOFILE`/container ulimits
   and widen `CAPTCHATUNNEL_TCP_PORT_MAX`. Memory stays low because tunnels are
   goroutine-based.
+
+## Coolify deployment (recommended if the VPS already runs Coolify)
+
+If the VPS uses Coolify (traefik owns ports 80/443), do not publish the public
+HTTP edge through Coolify's proxy for a wildcard (`*.domain`) use case —
+Coolify's Let's Encrypt resolver uses HTTP-01, which cannot issue wildcard
+certificates. Instead, let **Cloudflare terminate TLS** (its Universal SSL
+covers `*.yourdomain.com`) and forward to the tunnel's HTTP ingress.
+
+1. Import `docker-compose.coolify.yml` as a new Coolify **Docker Compose**
+   resource (Resources → + New → Docker Compose → Git Repository).
+2. Set `CAPTCHATUNNEL_TOKEN` (and the domain vars) in the Coolify UI and
+   deploy. The entrypoint generates the control-channel TLS cert itself.
+3. UFW: allow `4443/tcp`, `2086/tcp`, `10000:10100/tcp`.
+4. Cloudflare (DNS, proxied/proxy on):
+   - `A redy.captchamaster.org` → `<VPS-IP>`
+   - `A *.redy.captchamaster.org` → `<VPS-IP>`
+   - SSL/TLS mode: **Flexible** (Cloudflare → origin over HTTP) or **Full**.
+   - **Origin Rule** (Traffic → Origin Rules): for host `*.redy.captchamaster.org`,
+     set origin port to **2086**.
+5. The client connects to `<VPS-IP>:4443` (control) and the generated
+   `https://<sub>.redy.captchamaster.org` URL enters via Cloudflare → port 2086
+   → the tunnel.
