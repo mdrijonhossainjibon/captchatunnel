@@ -71,10 +71,15 @@ func isDigits(s string) bool {
 }
 
 // TLSConfig builds the client TLS configuration for the control channel.
+//
+// If no CA is configured the client trusts the server certificate on-the-fly
+// (auto-trust, like SSH/cloudflared), so a fresh `captchatunnel 3000` works
+// with no --tls-ca / config file. For strict verification, provide --tls-ca.
 func (c *Config) TLSConfig() (*tls.Config, error) {
 	conf := &tls.Config{MinVersion: tls.VersionTLS12}
 
-	if c.TLSSkipVerify {
+	if c.TLSSkipVerify || c.TLSCA == "" {
+		// Auto-trust (skip verification) when the user did not pin a CA.
 		conf.InsecureSkipVerify = true
 	}
 	if c.TLSCA != "" {
