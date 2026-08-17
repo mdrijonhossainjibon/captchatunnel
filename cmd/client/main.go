@@ -207,7 +207,7 @@ Options:
 Defaults can be set once in ~/.captchatunnel/config.json:
   { "server": "148.113.59.83:4443", "tls_ca": "C:/.../ca-coolify.crt",
     "tls_server_name": "redy.captchamaster.org", "token": "optional" }
-Then `captchatunnel 3000` uses them automatically.
+Then simply run "captchatunnel 3000" and it uses them automatically.
   --version             Print version and exit
   --help                Show this help
 `, version.Version, defaultServer)
