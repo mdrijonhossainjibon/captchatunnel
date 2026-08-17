@@ -43,12 +43,23 @@ func run(args []string) int {
 		return 0
 	}
 
-	if len(positionals) != 2 {
+	// Defaults can be baked into ~/.captchatunnel/config.json:
+	// { "server": "...", "tls_ca": "/path/ca.crt", "tls_server_name": "...", "token": "..." }
+	// Flags and environment variables always win over the config file.
+	def := loadConfigFile()
+
+	// Accept `captchatunnel 3000` (single port => http tunnel) as a shorthand.
+	proto := "http"
+	rawTarget := ""
+	if len(positionals) >= 2 {
+		proto = strings.ToLower(positionals[0])
+		rawTarget = positionals[1]
+	} else if len(positionals) == 1 {
+		rawTarget = positionals[0]
+	} else {
 		usage(os.Stderr)
 		return 2
 	}
-	proto := strings.ToLower(positionals[0])
-	rawTarget := positionals[1]
 
 	if proto != "http" && proto != "tcp" {
 		fmt.Fprintf(os.Stderr, "error: unsupported protocol %q (use http or tcp)\n\n", proto)
@@ -62,15 +73,14 @@ func run(args []string) int {
 		return 2
 	}
 
-	token := resolveToken(opts.token)
+	token := resolveToken(opts.token, def.Token)
 	if token == "" {
 		fmt.Fprintln(os.Stderr, "no tunnel token provided - using an auto-generated token for this session (works with a no-auth server)")
 	}
 
-	server := opts.server
-	if server == "" {
-		server = firstNonEmpty(os.Getenv("CAPTCHATUNNEL_SERVER"), defaultServer)
-	}
+	server := firstNonEmpty(opts.server, os.Getenv("CAPTCHATUNNEL_SERVER"), def.Server, defaultServer)
+	tlsCA := firstNonEmpty(opts.tlsCA, def.TLSCA)
+	tlsServerName := firstNonEmpty(opts.tlsServerName, def.TLSServerName)
 
 	cfg := &client.Config{
 		Proto:             proto,
@@ -80,9 +90,9 @@ func run(args []string) int {
 		Token:             token,
 		Region:            opts.region,
 		ServerAddr:        server,
-		TLSCA:             opts.tlsCA,
+		TLSCA:             tlsCA,
 		TLSSkipVerify:     opts.tlsSkipVerify,
-		TLSServerName:     opts.tlsServerName,
+		TLSServerName:     tlsServerName,
 		HeartbeatInterval: heartbeatInterval,
 		HeartbeatTimeout:  heartbeatTimeout,
 	}
@@ -132,38 +142,43 @@ func firstNonEmpty(vals ...string) string {
 	return ""
 }
 
+// fileConfig holds overridable defaults read from ~/.captchatunnel/config.json.
+type fileConfig struct {
+	Token         string `json:"token"`
+	Server        string `json:"server"`
+	TLSCA         string `json:"tls_ca"`
+	TLSServerName string `json:"tls_server_name"`
+}
+
+// loadConfigFile reads optional defaults from ~/.captchatunnel/config.json.
+// A missing or invalid file simply yields an empty config.
+func loadConfigFile() fileConfig {
+	var cfg fileConfig
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return cfg
+	}
+	path := filepath.Join(home, ".captchatunnel", "config.json")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return cfg
+	}
+	_ = json.Unmarshal(b, &cfg)
+	return cfg
+}
+
 // resolveToken resolves the tunnel token from --token, the environment, or a
 // config file at ~/.captchatunnel/config.json (in that order). An empty
 // result is fine: the client then generates a per-run token and works with a
 // no-auth server.
-func resolveToken(flagToken string) string {
+func resolveToken(flagToken, fileToken string) string {
 	if flagToken != "" {
 		return flagToken
 	}
 	if env := os.Getenv("CAPTCHATUNNEL_TOKEN"); env != "" {
 		return env
 	}
-	return tokenFromConfigFile()
-}
-
-func tokenFromConfigFile() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	path := filepath.Join(home, ".captchatunnel", "config.json")
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	var cfg struct {
-		Token  string `json:"token"`
-		Server string `json:"server"`
-	}
-	if err := json.Unmarshal(b, &cfg); err != nil {
-		return ""
-	}
-	return cfg.Token
+	return fileToken
 }
 
 func usage(w *os.File) {
@@ -172,12 +187,13 @@ func usage(w *os.File) {
 Usage:
   captchatunnel http <PORT|HOST:PORT> [options]
   captchatunnel tcp  <PORT|HOST:PORT> [options]
+  captchatunnel <PORT|HOST:PORT> [options]   (http is the default)
 
 Examples:
+  captchatunnel 3000
   captchatunnel http 3000
   captchatunnel http 5173 --subdomain=myapp
   captchatunnel tcp 22
-  captchatunnel tcp 25565 --region=sg
 
 Options:
   --subdomain=NAME      Request a specific subdomain (default: random)
@@ -187,6 +203,11 @@ Options:
   --tls-ca=FILE         Pin the server CA certificate
   --tls-skip-verify     Skip TLS verification (insecure, testing only)
   --tls-server-name=NAME Override TLS SNI name
+
+Defaults can be set once in ~/.captchatunnel/config.json:
+  { "server": "148.113.59.83:4443", "tls_ca": "C:/.../ca-coolify.crt",
+    "tls_server_name": "redy.captchamaster.org", "token": "optional" }
+Then `captchatunnel 3000` uses them automatically.
   --version             Print version and exit
   --help                Show this help
 `, version.Version, defaultServer)
