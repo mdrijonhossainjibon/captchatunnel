@@ -4,6 +4,12 @@
 captchatunnel
 captchatunnel-server
 
+# Release binaries ARE committed (for easy wget/download in Colab etc.)
+!releases/
+!releases/**
+!releases/*.exe
+!releases/captchatunnel-*
+
 # Secrets / local config
 .env
 tls/*.crt
