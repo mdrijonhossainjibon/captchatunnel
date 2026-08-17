@@ -1,0 +1,9 @@
+
+# TLS material lives here (gitignored). Generate with:
+#   bash deploy/scripts/gen-server-cert.sh         # control channel (self-signed)
+#   bash deploy/scripts/obtain-wildcard-cert.sh    # public wildcard (Let's Encrypt)
+#
+# Expected files:
+#   server.crt, server.key   -> control channel TLS (CAPTCHATUNNEL_TLS_CERT/KEY)
+#   ca.crt                   -> client trusts this (--tls-ca)
+#   fullchain.pem, privkey.pem -> public 443 wildcard (Nginx)

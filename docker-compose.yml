@@ -1,0 +1,45 @@
+name: captchatunnel
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    image: captchamaster/captchatunnel-server:1.0.0
+    restart: unless-stopped
+    environment:
+      # Secrets and settings come from the project .env (never committed).
+      CAPTCHATUNNEL_TOKEN: ${CAPTCHATUNNEL_TOKEN:?set CAPTCHATUNNEL_TOKEN in .env}
+      CAPTCHATUNNEL_BASE_DOMAIN: ${CAPTCHATUNNEL_BASE_DOMAIN:-redy.captchamaster.org}
+      CAPTCHATUNNEL_PUBLIC_ADDR: ${CAPTCHATUNNEL_PUBLIC_ADDR:-redy.captchamaster.org}
+      CAPTCHATUNNEL_CONTROL_ADDR: 0.0.0.0:4443
+      CAPTCHATUNNEL_HTTP_ADDR: 0.0.0.0:8080
+      CAPTCHATUNNEL_TCP_ADDR: 0.0.0.0
+      CAPTCHATUNNEL_TCP_PORT_MIN: 10000
+      CAPTCHATUNNEL_TCP_PORT_MAX: 10100
+      CAPTCHATUNNEL_TLS_CERT: /etc/captchatunnel/tls/server.crt
+      CAPTCHATUNNEL_TLS_KEY: /etc/captchatunnel/tls/server.key
+    volumes:
+      - ./tls:/etc/captchatunnel/tls:ro
+    ports:
+      - "4443:4443"                 # control channel (TLS)
+      - "10000-10100:10000-10100"   # TCP tunnels
+    networks:
+      - tunnel
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - server
+    volumes:
+      - ./deploy/nginx/tunnel.conf:/etc/nginx/conf.d/tunnel.conf:ro
+      - ./tls:/etc/nginx/tls:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - tunnel
+
+networks:
+  tunnel: {}

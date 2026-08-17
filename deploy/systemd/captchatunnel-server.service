@@ -1,0 +1,27 @@
+[Unit]
+Description=CaptchaTunnel Server (self-hosted tunnel platform)
+Documentation=https://github.com/captchamaster/captchatunnel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=captchatunnel
+Group=captchatunnel
+EnvironmentFile=/etc/captchatunnel/captchatunnel.env
+ExecStart=/usr/local/bin/captchatunnel-server
+Restart=always
+RestartSec=3
+
+# Allow many concurrent connections/tunnels.
+LimitNOFILE=1048576
+
+# Hardening.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log
+
+[Install]
+WantedBy=multi-user.target

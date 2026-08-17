@@ -1,0 +1,18 @@
+# Binaries
+/bin/
+/dist/
+captchatunnel
+captchatunnel-server
+
+# Secrets / local config
+.env
+tls/*.crt
+tls/*.key
+tls/*.pem
+!tls/.gitkeep
+~/.captchatunnel/
+
+# Build artifacts
+*.exe
+*.test
+*.out
