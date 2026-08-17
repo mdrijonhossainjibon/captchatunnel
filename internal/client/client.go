@@ -252,7 +252,7 @@ func (c *Client) acceptLoop(session *yamux.Session, closeDone func()) {
 	}
 }
 
-func (c *Client) handleStream(stream *yamux.Stream) {
+func (c *Client) handleStream(stream net.Conn) {
 	defer stream.Close()
 
 	conn, err := net.DialTimeout("tcp", c.cfg.Target, dialTimeout)
