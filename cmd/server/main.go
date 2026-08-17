@@ -32,6 +32,11 @@ func main() {
 	log.Printf("  http    : %s (reverse-proxy upstream)", cfg.HTTPAddr)
 	log.Printf("  tcp     : %s ports %d-%d", cfg.TCPAddr, cfg.TCPPortMin, cfg.TCPPortMax)
 	log.Printf("  domain  : %s", cfg.BaseDomain)
+	if cfg.AuthRequired {
+		log.Printf("  auth    : token required")
+	} else {
+		log.Printf("  auth    : disabled (no CAPTCHATUNNEL_TOKEN set) - any client may open a tunnel")
+	}
 
 	if err := srv.Run(ctx); err != nil {
 		log.Fatalf("server: %v", err)

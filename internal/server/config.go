@@ -17,6 +17,11 @@ type Config struct {
 	BaseDomain string
 	PublicAddr string
 
+	// AuthRequired enables token authentication. When false (no
+	// CAPTCHATUNNEL_TOKEN set) the server accepts tunnels without proof and
+	// keys ownership by the client's self-provided token.
+	AuthRequired bool
+
 	ControlAddr string
 	HTTPAddr    string
 	TCPAddr     string
@@ -47,9 +52,8 @@ func LoadConfig() (*Config, error) {
 		HeartbeatTimeout:  getenvDuration("CAPTCHATUNNEL_HEARTBEAT_TIMEOUT", 15*time.Second),
 	}
 
-	if cfg.Token == "" {
-		return nil, fmt.Errorf("CAPTCHATUNNEL_TOKEN is required")
-	}
+	cfg.AuthRequired = cfg.Token != ""
+
 	if cfg.TLSCert == "" || cfg.TLSKey == "" {
 		return nil, fmt.Errorf("CAPTCHATUNNEL_TLS_CERT and CAPTCHATUNNEL_TLS_KEY are required")
 	}

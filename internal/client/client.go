@@ -53,11 +53,16 @@ type Client struct {
 	lastPong atomic.Int64
 }
 
-// New builds a Client from cfg.
+// New builds a Client from cfg. If no token is configured, an ephemeral
+// per-run token is generated so the client works against a server running in
+// no-auth mode and keeps a stable subdomain across reconnects for this run.
 func New(cfg *Config) (*Client, error) {
 	tlsConf, err := cfg.TLSConfig()
 	if err != nil {
 		return nil, err
+	}
+	if cfg.Token == "" {
+		cfg.Token = auth.RandomHex(32)
 	}
 	return &Client{
 		cfg:       cfg,
@@ -201,6 +206,7 @@ func (c *Client) handshake(br *bufio.Reader, bw *bufio.Writer) (*protocol.Regist
 		Subdomain: requested,
 		Target:    c.cfg.Target,
 		Region:    c.cfg.Region,
+		Owner:     c.cfg.Token,
 		Auth:      auth.ComputeProof(c.cfg.Token, ch.ServerNonce, clientNonce),
 	})
 	if err := protocol.WriteMessage(bw, reg); err != nil {

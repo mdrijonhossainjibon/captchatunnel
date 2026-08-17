@@ -140,9 +140,11 @@ func (s *Server) handshake(session *yamux.Session, br *bufio.Reader, bw *bufio.W
 		return nil, err
 	}
 
-	if !auth.VerifyProof(s.cfg.Token, serverNonce, hello.ClientNonce, reg.Auth) {
-		_ = s.sendRegistered(bw, false, nil, "unauthorized: invalid tunnel token")
-		return nil, fmt.Errorf("unauthorized token proof")
+	if s.cfg.AuthRequired {
+		if !auth.VerifyProof(s.cfg.Token, serverNonce, hello.ClientNonce, reg.Auth) {
+			_ = s.sendRegistered(bw, false, nil, "unauthorized: invalid tunnel token")
+			return nil, fmt.Errorf("unauthorized token proof")
+		}
 	}
 
 	typ, ok := tunnel.ValidType(reg.Proto)
@@ -151,12 +153,24 @@ func (s *Server) handshake(session *yamux.Session, br *bufio.Reader, bw *bufio.W
 		return nil, fmt.Errorf("invalid proto %q", reg.Proto)
 	}
 
+	// Ownership: with auth enabled, the server token owns every tunnel. In
+	// no-auth mode the client's self-provided token owns its tunnel so that
+	// per-client subdomain reclaim still works.
+	owner := s.cfg.Token
+	if !s.cfg.AuthRequired {
+		if reg.Owner != "" {
+			owner = reg.Owner
+		} else {
+			owner = auth.RandomHex(16)
+		}
+	}
+
 	t := &Tunnel{
 		ID:          auth.RandomHex(8),
 		Type:        typ,
 		Target:      reg.Target,
 		Region:      reg.Region,
-		TokenHash:   auth.HashToken(s.cfg.Token),
+		TokenHash:   auth.HashToken(owner),
 		Session:     session,
 		ConnectedAt: time.Now(),
 	}

@@ -45,7 +45,8 @@ type Register struct {
 	Subdomain string `json:"subdomain,omitempty"` // empty => server picks one
 	Target    string `json:"target"`              // local addr, e.g. 127.0.0.1:3000
 	Region    string `json:"region,omitempty"`
-	Auth      string `json:"auth"` // HMAC-SHA256(token, serverNonce:clientNonce)
+	Owner     string `json:"owner,omitempty"` // client token (used for ownership/reclaim)
+	Auth      string `json:"auth"`            // HMAC-SHA256(token, serverNonce:clientNonce)
 }
 
 // Registered is the server's response. On success it carries the public URL

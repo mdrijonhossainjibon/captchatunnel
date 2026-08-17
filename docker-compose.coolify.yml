@@ -24,7 +24,8 @@ services:
       dockerfile: deploy/docker/Dockerfile
     restart: unless-stopped
     environment:
-      CAPTCHATUNNEL_TOKEN: ${CAPTCHATUNNEL_TOKEN:-change-this-secret-token}
+      # CAPTCHATUNNEL_TOKEN is OPTIONAL. Leave it unset for no-auth mode.
+      # CAPTCHATUNNEL_TOKEN: set-me-to-enforce-auth
       CAPTCHATUNNEL_BASE_DOMAIN: ${CAPTCHATUNNEL_BASE_DOMAIN:-redy.captchamaster.org}
       CAPTCHATUNNEL_PUBLIC_ADDR: ${CAPTCHATUNNEL_PUBLIC_ADDR:-redy.captchamaster.org}
       CAPTCHATUNNEL_CONTROL_ADDR: 0.0.0.0:4443

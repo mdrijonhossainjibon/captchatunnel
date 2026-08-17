@@ -62,10 +62,9 @@ func run(args []string) int {
 		return 2
 	}
 
-	token, err := resolveToken(opts.token)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 2
+	token := resolveToken(opts.token)
+	if token == "" {
+		fmt.Fprintln(os.Stderr, "no tunnel token provided - using an auto-generated token for this session (works with a no-auth server)")
 	}
 
 	server := opts.server
@@ -134,18 +133,17 @@ func firstNonEmpty(vals ...string) string {
 }
 
 // resolveToken resolves the tunnel token from --token, the environment, or a
-// config file at ~/.captchatunnel/config.json (in that order).
-func resolveToken(flagToken string) (string, error) {
+// config file at ~/.captchatunnel/config.json (in that order). An empty
+// result is fine: the client then generates a per-run token and works with a
+// no-auth server.
+func resolveToken(flagToken string) string {
 	if flagToken != "" {
-		return flagToken, nil
+		return flagToken
 	}
 	if env := os.Getenv("CAPTCHATUNNEL_TOKEN"); env != "" {
-		return env, nil
+		return env
 	}
-	if fromFile := tokenFromConfigFile(); fromFile != "" {
-		return fromFile, nil
-	}
-	return "", fmt.Errorf("no tunnel token: pass --token=SECRET or set CAPTCHATUNNEL_TOKEN")
+	return tokenFromConfigFile()
 }
 
 func tokenFromConfigFile() string {
