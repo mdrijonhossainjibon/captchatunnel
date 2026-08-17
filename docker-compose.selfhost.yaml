@@ -1,0 +1,50 @@
+# Self-hosted CaptchaTunnel server (direct, without Coolify managing it).
+#
+# This runs the tunnel server as a plain docker-compose service:
+#   - Fixed, host-mounted TLS certs (tls/ dir) so the CA NEVER changes
+#     (no more "unknown authority" after every restart).
+#   - Attached to the external `coolify` network with the `server` alias so
+#     Coolify's traefik (which owns 80/443) keeps routing
+#     *.redy.captchamaster.org -> this server over the shared network.
+#
+# Usage (on the VPS):
+#   docker compose -f docker-compose.selfhost.yaml up -d
+
+services:
+  server:
+    image: captchamaster/captchatunnel-server:1.0.0
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Optional auth token (leave empty for no-auth mode).
+      CAPTCHATUNNEL_TOKEN: ${CAPTCHATUNNEL_TOKEN:-}
+      CAPTCHATUNNEL_BASE_DOMAIN: ${CAPTCHATUNNEL_BASE_DOMAIN:-redy.captchamaster.org}
+      CAPTCHATUNNEL_PUBLIC_ADDR: ${CAPTCHATUNNEL_PUBLIC_ADDR:-redy.captchamaster.org}
+      CAPTCHATUNNEL_CONTROL_ADDR: 0.0.0.0:4443
+      CAPTCHATUNNEL_HTTP_ADDR: 0.0.0.0:8080
+      CAPTCHATUNNEL_TCP_ADDR: 0.0.0.0
+      CAPTCHATUNNEL_TCP_PORT_MIN: 10000
+      CAPTCHATUNNEL_TCP_PORT_MAX: 10100
+      # Fixed host-mounted certs (never regenerated). Point these keys at the
+      # mounted files so the server uses your stable CA.
+      CAPTCHATUNNEL_TLS_CERT: /tls/server.crt
+      CAPTCHATUNNEL_TLS_KEY: /tls/server.key
+    volumes:
+      - ./tls:/tls:ro
+    ports:
+      - "4443:4443"
+      - "2086:8080"             # HTTP ingress published on 2086 (optional; traefik uses the network)
+      - "10000-10100:10000-10100"
+    networks:
+      default: {}
+      coolify:
+        aliases:
+          - server
+
+networks:
+  default:
+    name: captchatunnel-selfhost
+  coolify:
+    external: true
